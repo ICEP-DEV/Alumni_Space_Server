@@ -88,9 +88,10 @@ router.post('/api/login', (req, res) => {
           } else {
             if (result && result.length > 0) {
               var name = result[0].name;
+              var complete = result[0].complete
               console.log("name: " + name);
               //send to front-end
-              res.status(200).json({ message: 'Login successful!', result, account_id });
+              res.status(200).json({ message: 'Login successful!', result, account_id, complete });
             } else {
               console.log('Invalid email or password');
               res.status(401).json({ message: 'Invalid email or password' });
@@ -115,7 +116,8 @@ router.post('/api/register', (req, res) => {
 
   //DATABASE SCRIPTS HERE
   var registerQuery;
-  insertDetailsSQL = "INSERT INTO Alumni_Space_Account(email,password,role) " + " VALUES (?,?,?)";
+  receivedData.complete = false
+  insertDetailsSQL = "INSERT INTO Alumni_Space_Account(email,password,role, complete) " + " VALUES (?,?,?,false)";
   role = "Alumni";
 
   if (role == "Alumni") {
@@ -1537,6 +1539,8 @@ router.post('/add_employment', (req, res) => {
   else {
     employment_status = "Employed"
   }
+  console.log(employment_status)
+  
   client.query(sql, body_values, (err, result) => {
     if (err) {
       console.log(err)

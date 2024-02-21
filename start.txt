@@ -1,0 +1,1 @@
+    "start": "nodemon app.js | json-server --watch post.json --port 3002"
