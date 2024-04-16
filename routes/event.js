@@ -15,28 +15,30 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// router.post('/addEvent', upload.single('image'), (req, res) => {
-//     console.log(req.body);
-//     const sql_body = [req.body.eventName, req.body.organization, req.file.filename, req.body.donationFee, req.body.description, req.body.venue, req.body.startDate, req.body.endDate]
-//     const sql = `INSERT INTO event_poster ( eventName, organization, image, donationFee, description, venue, startDate, endDate) 
-//                 VALUES (?, ?, ?, ?, ?, ?, ?, ?);`
-             
-//     connection.query(sql, sql_body, (err, result) => {
-//         if (err) {
-//             console.log(err)
-//         }
-//         else {
-//             if (result.affectedRows != 0) {
-//                 var insertedId = result.insertId
-//                 res.send({ success: true, message: "event data recorded...", insertedId })
-//             }
-//             else {
-//                 res.send({ success: false, message: "unable to record event..." })
-//             }
-//         }
-//     })
-    
-// })
+router.post('/addEvent', upload.single('image'), (req, res) => {
+    console.log(req.body);
+    const sql_body = [req.body.eventName, req.body.organization, req.file.filename, req.body.donationFee, req.body.description, req.body.venue, req.body.startDate, req.body.endDate]
+    const sql = `INSERT INTO event_poster ( eventName, organization, image, donationFee, description, venue, startDate, endDate) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?);`
+
+    connection.query(sql, sql_body, (err, result) => {
+        if (err) {
+            console.log(err)
+        }
+        else {
+            if (result.affectedRows != 0) {
+                var insertedId = result.insertId
+                res.send({ success: true, message: "event data recorded...", insertedId })
+            }
+            else {
+                res.send({ success: false, message: "unable to record event..." })
+            }
+        }
+    })
+
+})
+
+/*
 router.post('/addEvent', upload.single('image'), (req, res) => {
     const eventName = req.body.eventName;
     const organization = req.body.organization;
@@ -64,8 +66,25 @@ router.post('/addEvent', upload.single('image'), (req, res) => {
       }
     });
   });
+*/
 
-
+router.get('/getEventsStats', (req, res) => {
+    var sql = `select count(ep.event_id) as event_count, AVG(ep.event_id) as event_avg, ep.event_id, eventName
+                    from event_poster ep, alumni_event ae
+                    where ep.event_id = ae.alumni_event_id
+                    group by ae.event_id;`;
+    connection.query(sql, (err, result) => {
+        if (err) console.log(err)
+        else {
+            if (result.length > 0) {
+                res.send({ success: true, result })
+            }
+            else {
+                res.send({ success: false, message: "No events found" })
+            }
+        }
+    })
+})
 
 router.get('/getEventsList', (req, res) => {
     var sql = "select * from event_poster where startDate > NOW()";
@@ -82,11 +101,16 @@ router.get('/getEventsList', (req, res) => {
     })
 })
 
-router.get('/alumni_subscribes', (req, res) => {
-    const sql = `SELECT alumni_event_id, isAttend, isDonated, eventName
+router.get('/alumni_event_subscribe/:alumni_id', (req, res) => {
+    const sql = `SELECT ae.alumni_event_id, isAttend, isDonated, eventName, ae.event_id, alumni_id,
+                    organization, image, donationFee, description, venue, DATE_FORMAT(startDate, "%d/%m/%Y") as startDate, 
+                    DATE_FORMAT(endDate, "%d/%m/%Y") as endDate, DATE_FORMAT(startDate, "%H:%i") as startTime, DATE_FORMAT(endDate, "%H:%i") as endTime, 
+                    startDate as initialDate, endDate as lastDate
                     from alumni_event ae, event_poster ep
-                    where ae.event_id = ep.event_id`
-    connection.query(sql, (err, result) => {
+                    where ae.event_id = ep.event_id
+                    and alumni_id =?`
+
+    connection.query(sql, req.params.alumni_id, (err, result) => {
         if (err) console.log(err)
         else {
             if (result.length > 0) {
@@ -138,11 +162,10 @@ router.post('/addAlumniEvent', function (req, res) {
         }
         else {
             if (result.affectedRows != 0) {
-                var insertedId = result.insertId
-                res.send({ success: true, message: "event attendance filled", insertedId })
+                res.send({ success: true, message: "Successfully RSVP for event..." })
             }
             else {
-                res.send({ success: false, message: "unable to event attendance..." })
+                res.send({ success: false, message: "Unable to RSVP for the event..." })
             }
         }
     })
@@ -155,8 +178,9 @@ router.get('/getEvents', (req, res) => {
                 DATE_FORMAT(endDate, "%H:%i") as endTime, startDate as initialDate, endDate as lastDate
                 from event_poster
                 where startDate > NOW()
-                and is_deleted = false`
-    connection.query(sql, req.params.alumniId, (err, result) => {
+                and is_deleted = false
+                order by startDate`
+    connection.query(sql, (err, result) => {
         if (err) console.log(err)
         else {
             if (result.length > 0) {
@@ -169,20 +193,20 @@ router.get('/getEvents', (req, res) => {
     })
 })
 
-router.put('/disable_event/:event_id', (req,res)=>{
+router.put('/disable_event/:event_id', (req, res) => {
     const sql = `update event_poster
                 set is_deleted = true
                 where event_id =?`
-    connection.query(sql, req.params.event_id, (err, result)=>{
-        if(err) {
+    connection.query(sql, req.params.event_id, (err, result) => {
+        if (err) {
             console.log(err)
             return
         }
-        if(result.affectedRows !=0){
-            res.send({success:true, message:'Event removed'})
+        if (result.affectedRows != 0) {
+            res.send({ success: true, message: 'Event removed' })
         }
-        else{
-            res.send({success:false, message:'Unable to remove event'})
+        else {
+            res.send({ success: false, message: 'Unable to remove event' })
         }
     })
 })
